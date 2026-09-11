@@ -10,4 +10,5 @@ public record ServiceStatusDto
     public required ServiceStatus Status { get; init; }
     public DateTime? LastCheckedAtUtc { get; init; }
     public long? RecentLatencyMs { get; init; }
+    public bool IsActive { get; init; } = true;
 }

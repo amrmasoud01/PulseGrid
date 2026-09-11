@@ -31,5 +31,9 @@ public class MonitoredServiceConfiguration : IEntityTypeConfiguration<MonitoredS
 
         builder.Property(s => s.LastCheckedAtUtc)
             .IsRequired(false);
+
+        builder.Property(s => s.IsActive)
+            .HasDefaultValue(true)
+            .IsRequired();
     }
 }

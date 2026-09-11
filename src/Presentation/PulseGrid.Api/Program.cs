@@ -4,6 +4,8 @@ using PulseGrid.Api.Services;
 using PulseGrid.Application;
 using PulseGrid.Application.Common.Interfaces;
 using PulseGrid.Application.Services.Commands.CreateMonitoredService;
+using PulseGrid.Application.Services.Commands.DeleteMonitoredService;
+using PulseGrid.Application.Services.Commands.ToggleServiceMonitoring;
 using PulseGrid.Application.SystemStatus.Queries.GetSystemStatus;
 using PulseGrid.BackgroundJobs;
 using PulseGrid.Infrastructure;
@@ -54,5 +56,19 @@ app.MapPost("/api/services", async (CreateMonitoredServiceCommand command, ISend
     return Results.Created($"/api/services/{serviceId}", new { id = serviceId });
 })
 .WithName("CreateMonitoredService");
+
+app.MapDelete("/api/services/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
+{
+    await sender.Send(new DeleteMonitoredServiceCommand(id), ct);
+    return Results.NoContent();
+})
+.WithName("DeleteMonitoredService");
+
+app.MapPut("/api/services/{id:guid}/toggle", async (Guid id, ISender sender, CancellationToken ct) =>
+{
+    var isActive = await sender.Send(new ToggleServiceMonitoringCommand(id), ct);
+    return Results.Ok(new { isActive });
+})
+.WithName("ToggleServiceMonitoring");
 
 app.Run();

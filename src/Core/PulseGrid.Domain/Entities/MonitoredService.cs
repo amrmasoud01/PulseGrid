@@ -11,4 +11,5 @@ public class MonitoredService
     public int TimeoutMs { get; set; }
     public ServiceStatus CurrentStatus { get; set; }
     public DateTime? LastCheckedAtUtc { get; set; }
+    public bool IsActive { get; set; } = true;
 }

@@ -41,7 +41,8 @@ public class GetSystemStatusQueryHandler(IApplicationDbContext context)
             TargetUrl = s.TargetUrl,
             Status = s.CurrentStatus,
             LastCheckedAtUtc = s.LastCheckedAtUtc,
-            RecentLatencyMs = latestLatencies.GetValueOrDefault(s.Id)
+            RecentLatencyMs = latestLatencies.GetValueOrDefault(s.Id),
+            IsActive = s.IsActive
         }).ToList();
 
         var incidentDtos = activeIncidents.Select(i => new ActiveIncidentDto
@@ -69,13 +70,15 @@ public class GetSystemStatusQueryHandler(IApplicationDbContext context)
         IReadOnlyList<MonitoredService> services,
         IReadOnlyList<Incident> incidents)
     {
-        if (services.Any(s => s.CurrentStatus == ServiceStatus.Down) ||
+        var activeServices = services.Where(s => s.IsActive).ToList();
+
+        if (activeServices.Any(s => s.CurrentStatus == ServiceStatus.Down) ||
             incidents.Any(i => i.Severity == IncidentSeverity.Critical))
         {
             return ServiceStatus.Down;
         }
 
-        if (services.Any(s => s.CurrentStatus == ServiceStatus.Degraded) ||
+        if (activeServices.Any(s => s.CurrentStatus == ServiceStatus.Degraded) ||
             incidents.Count > 0)
         {
             return ServiceStatus.Degraded;

@@ -692,3 +692,103 @@
     margin-bottom: 1.25rem;
     font-size: 0.95rem;
 }
+
+/* Service Actions & States */
+.service-status-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.service-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.btn-pause {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.btn-pause:hover {
+    background: rgba(245, 158, 11, 0.25);
+    transform: scale(1.05);
+}
+
+.btn-resume {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.btn-resume:hover {
+    background: rgba(16, 185, 129, 0.25);
+    transform: scale(1.05);
+}
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.25);
+    transform: scale(1.05);
+}
+
+.status-badge-paused {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.service-paused {
+    opacity: 0.72;
+    border-style: dashed;
+}
+
+.modal-dialog-sm {
+    max-width: 420px;
+}
+
+.btn-danger-action {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: #ffffff;
+    border: none;
+    padding: 0.55rem 1.15rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.btn-danger-action:hover {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+.delete-warning-text {
+    font-size: 0.825rem;
+    color: #fca5a5;
+    margin-top: 0.5rem;
+    line-height: 1.4;
+}

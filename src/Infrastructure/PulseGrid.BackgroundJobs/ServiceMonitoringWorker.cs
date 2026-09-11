@@ -48,7 +48,9 @@ public class ServiceMonitoringWorker(
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var notifier = scope.ServiceProvider.GetService<IStatusNotifier>();
 
-        var services = await dbContext.MonitoredServices.ToListAsync(ct);
+        var services = await dbContext.MonitoredServices
+            .Where(s => s.IsActive)
+            .ToListAsync(ct);
         if (services.Count == 0)
         {
             return;

@@ -127,7 +127,7 @@
                     @foreach (var service in overview.Services)
                     {
                         var isJustPinged = lastPingedServiceId == service.Id;
-                        <div class="service-card @(isJustPinged ? "ping-highlight" : "")" id="@($"service-{service.Id}")">
+                        <div class="service-card @(isJustPinged ? "ping-highlight" : "") @(!service.IsActive ? "service-paused" : "")" id="@($"service-{service.Id}")">
                             <div class="service-header">
                                 <div>
                                     <h4 class="service-name">@service.Name</h4>
@@ -140,17 +140,63 @@
                                         </svg>
                                     </a>
                                 </div>
-                                <span class="status-badge status-badge-@service.Status.ToString().ToLowerInvariant()">
-                                    <span class="status-dot"></span>
-                                    @service.Status
-                                </span>
+                                <div class="service-status-actions">
+                                    @if (!service.IsActive)
+                                    {
+                                        <span class="status-badge status-badge-paused">
+                                            <span class="status-dot"></span>
+                                            Paused
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge status-badge-@service.Status.ToString().ToLowerInvariant()">
+                                            <span class="status-dot"></span>
+                                            @service.Status
+                                        </span>
+                                    }
+                                    <div class="service-actions">
+                                        <button type="button" class="btn-action-icon @(service.IsActive ? "btn-pause" : "btn-resume")"
+                                                title="@(service.IsActive ? "Pause monitoring" : "Resume monitoring")"
+                                                @onclick="() => ToggleServiceMonitoringAsync(service)">
+                                            @if (service.IsActive)
+                                            {
+                                                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                                </svg>
+                                            }
+                                            else
+                                            {
+                                                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                                </svg>
+                                            }
+                                        </button>
+                                        <button type="button" class="btn-action-icon btn-delete"
+                                                title="Delete service"
+                                                @onclick="() => ConfirmDeleteService(service.Id, service.Name)">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="service-footer">
                                 <div class="latency-info">
                                     <span class="latency-label">Response Time</span>
                                     <span class="latency-value @GetLatencyClass(service.RecentLatencyMs)">
-                                        @(service.RecentLatencyMs.HasValue ? $"{service.RecentLatencyMs} ms" : "Pending...")
+                                        @if (!service.IsActive)
+                                        {
+                                            <span class="text-muted">Monitoring Paused</span>
+                                        }
+                                        else
+                                        {
+                                            @(service.RecentLatencyMs.HasValue ? $"{service.RecentLatencyMs} ms" : "Pending...")
+                                        }
                                     </span>
                                 </div>
                                 <div class="last-checked">
@@ -270,6 +316,29 @@
     </div>
 }
 
+<!-- Modal to Confirm Delete Service -->
+@if (serviceIdToDelete.HasValue)
+{
+    <div class="modal-backdrop">
+        <div class="modal-dialog modal-dialog-sm" @onclick:stopPropagation="true" @onmousedown:stopPropagation="true">
+            <div class="modal-header">
+                <h3 class="modal-title">Delete Service</h3>
+                <button type="button" class="btn-close" @onclick="CancelDelete">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete <strong>@serviceNameToDelete</strong>?</p>
+                <p class="delete-warning-text">All associated health check logs and incident history will be permanently deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" @onclick="CancelDelete" disabled="@isDeletingService">Cancel</button>
+                <button type="button" class="btn-danger-action" @onclick="ExecuteDeleteServiceAsync" disabled="@isDeletingService">
+                    @(isDeletingService ? "Deleting..." : "Delete Service")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private SystemStatusOverviewDto? overview;
     private HubConnection? hubConnection;
@@ -282,6 +351,78 @@
     private bool isSubmittingService;
     private string? addServiceError;
     private CreateMonitoredServiceModel newService = new();
+
+    private Guid? serviceIdToDelete;
+    private string? serviceNameToDelete;
+    private bool isDeletingService;
+
+    private async Task ToggleServiceMonitoringAsync(ServiceStatusDto service)
+    {
+        try
+        {
+            var response = await Http.PutAsync($"/api/services/{service.Id}/toggle", null);
+            if (response.IsSuccessStatusCode && overview is not null)
+            {
+                var updated = overview.Services.Select(s =>
+                    s.Id == service.Id ? s with { IsActive = !s.IsActive } : s).ToList();
+
+                overview = overview with { Services = updated };
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to toggle service monitoring: {ex.Message}";
+        }
+    }
+
+    private void ConfirmDeleteService(Guid serviceId, string serviceName)
+    {
+        serviceIdToDelete = serviceId;
+        serviceNameToDelete = serviceName;
+    }
+
+    private void CancelDelete()
+    {
+        serviceIdToDelete = null;
+        serviceNameToDelete = null;
+    }
+
+    private async Task ExecuteDeleteServiceAsync()
+    {
+        if (!serviceIdToDelete.HasValue) return;
+
+        isDeletingService = true;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/services/{serviceIdToDelete.Value}");
+            if (response.IsSuccessStatusCode)
+            {
+                if (overview is not null)
+                {
+                    var updatedServices = overview.Services.Where(s => s.Id != serviceIdToDelete.Value).ToList();
+                    overview = overview with { Services = updatedServices };
+                }
+
+                serviceIdToDelete = null;
+                serviceNameToDelete = null;
+                await LoadInitialStatusAsync();
+            }
+            else
+            {
+                errorMessage = $"Failed to delete service. Status code: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to delete service: {ex.Message}";
+        }
+        finally
+        {
+            isDeletingService = false;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
