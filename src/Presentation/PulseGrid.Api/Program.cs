@@ -1,11 +1,27 @@
+using PulseGrid.Api.Hubs;
+using PulseGrid.Api.Services;
 using PulseGrid.Application;
+using PulseGrid.Application.Common.Interfaces;
 using PulseGrid.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<IStatusNotifier, StatusNotifier>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .SetIsOriginAllowed(_ => true);
+    });
+});
 
 var app = builder.Build();
 
@@ -15,6 +31,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
+
+app.MapHub<StatusHub>("/hubs/status");
 
 var summaries = new[]
 {
