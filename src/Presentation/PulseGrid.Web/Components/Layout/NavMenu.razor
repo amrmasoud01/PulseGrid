@@ -1,6 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">PulseGrid.Web</a>
+        <a class="navbar-brand d-flex align-items-center gap-2" href="">
+            <span class="brand-pulse-dot"></span>
+            PulseGrid
+        </a>
     </div>
 </div>
 
@@ -10,21 +13,14 @@
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
+            <a class="nav-link" href="http://localhost:5103/openapi/v1.json" target="_blank">
+                <span class="bi bi-file-earmark-code" aria-hidden="true"></span> OpenAPI Spec
+            </a>
         </div>
     </nav>
 </div>
-

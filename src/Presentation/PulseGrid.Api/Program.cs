@@ -1,7 +1,10 @@
+using MediatR;
 using PulseGrid.Api.Hubs;
 using PulseGrid.Api.Services;
 using PulseGrid.Application;
 using PulseGrid.Application.Common.Interfaces;
+using PulseGrid.Application.Services.Commands.CreateMonitoredService;
+using PulseGrid.Application.SystemStatus.Queries.GetSystemStatus;
 using PulseGrid.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,28 +38,18 @@ app.UseCors();
 
 app.MapHub<StatusHub>("/hubs/status");
 
-var summaries = new[]
+app.MapGet("/api/status", async (ISender sender, CancellationToken ct) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var status = await sender.Send(new GetSystemStatusQuery(), ct);
+    return Results.Ok(status);
 })
-.WithName("GetWeatherForecast");
+.WithName("GetSystemStatus");
+
+app.MapPost("/api/services", async (CreateMonitoredServiceCommand command, ISender sender, CancellationToken ct) =>
+{
+    var serviceId = await sender.Send(command, ct);
+    return Results.Created($"/api/services/{serviceId}", new { id = serviceId });
+})
+.WithName("CreateMonitoredService");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

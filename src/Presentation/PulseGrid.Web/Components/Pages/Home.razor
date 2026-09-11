@@ -1,7 +1,486 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject HttpClient Http
+@inject IConfiguration Configuration
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>PulseGrid - Live Health & Status Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="pulsegrid-container">
+    <!-- Top Header -->
+    <header class="dashboard-header">
+        <div class="brand-group">
+            <div class="brand-logo">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+            </div>
+            <div>
+                <h1 class="brand-title">PulseGrid</h1>
+                <p class="brand-subtitle">Real-Time Infrastructure Monitoring Engine</p>
+            </div>
+        </div>
 
-Welcome to your new app.
+        <div class="header-actions">
+            <div class="connection-status @(isConnected ? "status-connected" : "status-disconnected")">
+                <span class="status-indicator"></span>
+                <span>@(isConnected ? "Live Connected" : "Reconnecting...")</span>
+            </div>
+            <button class="btn-primary-action" @onclick="OpenAddServiceModal">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Service
+            </button>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Connecting to PulseGrid engine...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage) && overview is null)
+    {
+        <div class="error-banner">
+            <div class="error-icon">⚠️</div>
+            <div>
+                <h4>Unable to Connect to API</h4>
+                <p>@errorMessage</p>
+                <button class="btn-retry" @onclick="LoadInitialStatusAsync">Retry Connection</button>
+            </div>
+        </div>
+    }
+    else if (overview is not null)
+    {
+        <!-- Overall System Status Banner -->
+        <section class="banner-card @GetBannerClass(overview.OverallStatus)">
+            <div class="banner-content">
+                <div class="banner-icon-wrapper">
+                    @if (overview.OverallStatus == ServiceStatus.Operational)
+                    {
+                        <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    }
+                    else if (overview.OverallStatus == ServiceStatus.Degraded)
+                    {
+                        <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    }
+                </div>
+                <div class="banner-text">
+                    <h2 class="banner-heading">@GetBannerTitle(overview.OverallStatus)</h2>
+                    <p class="banner-description">@GetBannerDescription(overview.OverallStatus)</p>
+                </div>
+            </div>
+
+            <div class="banner-metrics">
+                <div class="metric-item">
+                    <span class="metric-label">Services Monitored</span>
+                    <span class="metric-value">@overview.Services.Count</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Operational</span>
+                    <span class="metric-value text-success">@overview.Services.Count(s => s.Status == ServiceStatus.Operational)</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Active Incidents</span>
+                    <span class="metric-value @(overview.ActiveIncidents.Count > 0 ? "text-danger" : "text-muted")">@overview.ActiveIncidents.Count</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Monitored Services Grid -->
+        <section class="section-container">
+            <div class="section-header">
+                <h3 class="section-title">Monitored Services</h3>
+                <span class="section-badge">Live Updates via SignalR</span>
+            </div>
+
+            @if (overview.Services.Count == 0)
+            {
+                <div class="empty-state">
+                    <p>No services are currently monitored.</p>
+                    <button class="btn-primary-action" @onclick="OpenAddServiceModal">Add First Service</button>
+                </div>
+            }
+            else
+            {
+                <div class="services-grid">
+                    @foreach (var service in overview.Services)
+                    {
+                        var isJustPinged = lastPingedServiceId == service.Id;
+                        <div class="service-card @(isJustPinged ? "ping-highlight" : "")" id="@($"service-{service.Id}")">
+                            <div class="service-header">
+                                <div>
+                                    <h4 class="service-name">@service.Name</h4>
+                                    <a class="service-url" href="@service.TargetUrl" target="_blank" rel="noopener noreferrer">
+                                        @service.TargetUrl
+                                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                            <polyline points="15 3 21 3 21 9"></polyline>
+                                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                                        </svg>
+                                    </a>
+                                </div>
+                                <span class="status-badge status-badge-@service.Status.ToString().ToLowerInvariant()">
+                                    <span class="status-dot"></span>
+                                    @service.Status
+                                </span>
+                            </div>
+
+                            <div class="service-footer">
+                                <div class="latency-info">
+                                    <span class="latency-label">Response Time</span>
+                                    <span class="latency-value @GetLatencyClass(service.RecentLatencyMs)">
+                                        @(service.RecentLatencyMs.HasValue ? $"{service.RecentLatencyMs} ms" : "Pending...")
+                                    </span>
+                                </div>
+                                <div class="last-checked">
+                                    <span>Last checked: @FormatLastChecked(service.LastCheckedAtUtc)</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+
+        <!-- Active Incidents Section -->
+        <section class="section-container">
+            <div class="section-header">
+                <h3 class="section-title">Active Incidents</h3>
+                @if (overview.ActiveIncidents.Count > 0)
+                {
+                    <span class="incident-count-badge">@overview.ActiveIncidents.Count Active</span>
+                }
+            </div>
+
+            @if (overview.ActiveIncidents.Count == 0)
+            {
+                <div class="incidents-healthy-card">
+                    <div class="healthy-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="healthy-title">No Active Incidents</h4>
+                        <p class="healthy-subtitle">All systems and monitored endpoints are operating normally.</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="incidents-list">
+                    @foreach (var incident in overview.ActiveIncidents)
+                    {
+                        <div class="incident-card severity-@incident.Severity.ToString().ToLowerInvariant()">
+                            <div class="incident-header">
+                                <div>
+                                    <div class="incident-meta">
+                                        <span class="severity-pill severity-@incident.Severity.ToString().ToLowerInvariant()">
+                                            @incident.Severity
+                                        </span>
+                                        <span class="incident-service">@incident.ServiceName</span>
+                                    </div>
+                                    <h4 class="incident-title">@incident.Title</h4>
+                                </div>
+                                <span class="incident-status-pill status-@incident.Status.ToString().ToLowerInvariant()">
+                                    @incident.Status
+                                </span>
+                            </div>
+                            <div class="incident-footer">
+                                <span class="incident-time">
+                                    Opened: @incident.CreatedAtUtc.ToString("MMM dd, yyyy HH:mm:ss 'UTC'")
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+<!-- Modal to Add Service -->
+@if (showAddModal)
+{
+    <div class="modal-backdrop" @onclick="CloseAddServiceModal">
+        <div class="modal-dialog" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3 class="modal-title">Add Monitored Service</h3>
+                <button class="btn-close" @onclick="CloseAddServiceModal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(addServiceError))
+                {
+                    <div class="form-alert">@addServiceError</div>
+                }
+
+                <div class="form-group">
+                    <label class="form-label">Service Name</label>
+                    <input class="form-input" @bind="newService.Name" placeholder="e.g. Stripe Payment Gateway" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Target URL (Absolute)</label>
+                    <input class="form-input" @bind="newService.TargetUrl" placeholder="https://api.stripe.com/healthcheck" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Interval (Seconds)</label>
+                        <input type="number" class="form-input" @bind="newService.IntervalSeconds" min="5" max="3600" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Timeout (Milliseconds)</label>
+                        <input type="number" class="form-input" @bind="newService.TimeoutMs" min="500" max="60000" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CloseAddServiceModal" disabled="@isSubmittingService">Cancel</button>
+                <button class="btn-primary-action" @onclick="SubmitCreateServiceAsync" disabled="@isSubmittingService">
+                    @(isSubmittingService ? "Registering..." : "Add Service")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private SystemStatusOverviewDto? overview;
+    private HubConnection? hubConnection;
+    private bool isConnected;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private Guid? lastPingedServiceId;
+
+    private bool showAddModal;
+    private bool isSubmittingService;
+    private string? addServiceError;
+    private CreateMonitoredServiceModel newService = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialStatusAsync();
+        await InitializeSignalRAsync();
+    }
+
+    private async Task LoadInitialStatusAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            overview = await Http.GetFromJsonAsync<SystemStatusOverviewDto>("/api/status");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to retrieve system status: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task InitializeSignalRAsync()
+    {
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5103";
+        var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/status";
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<SystemStatusOverviewDto>("ReceiveStatusUpdate", async (updatedOverview) =>
+        {
+            overview = updatedOverview;
+            await InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<Guid, ServiceStatus, long>("ReceiveServicePing", async (serviceId, status, latencyMs) =>
+        {
+            if (overview is not null)
+            {
+                var updatedServices = overview.Services.Select(s =>
+                    s.Id == serviceId
+                        ? s with { Status = status, RecentLatencyMs = latencyMs, LastCheckedAtUtc = DateTime.UtcNow }
+                        : s).ToList();
+
+                overview = overview with { Services = updatedServices };
+                lastPingedServiceId = serviceId;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
+        hubConnection.Reconnecting += _ =>
+        {
+            isConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Reconnected += _ =>
+        {
+            isConnected = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        hubConnection.Closed += _ =>
+        {
+            isConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        try
+        {
+            await hubConnection.StartAsync();
+            isConnected = true;
+        }
+        catch
+        {
+            isConnected = false;
+        }
+    }
+
+    private void OpenAddServiceModal()
+    {
+        newService = new CreateMonitoredServiceModel();
+        addServiceError = null;
+        showAddModal = true;
+    }
+
+    private void CloseAddServiceModal()
+    {
+        showAddModal = false;
+        addServiceError = null;
+    }
+
+    private async Task SubmitCreateServiceAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newService.Name))
+        {
+            addServiceError = "Service name is required.";
+            return;
+        }
+
+        if (!Uri.TryCreate(newService.TargetUrl, UriKind.Absolute, out _))
+        {
+            addServiceError = "Please enter a valid absolute URL (e.g. https://example.com).";
+            return;
+        }
+
+        isSubmittingService = true;
+        addServiceError = null;
+
+        try
+        {
+            var command = new CreateMonitoredServiceCommand(
+                newService.Name,
+                newService.TargetUrl,
+                newService.IntervalSeconds,
+                newService.TimeoutMs);
+
+            var response = await Http.PostAsJsonAsync("/api/services", command);
+            if (response.IsSuccessStatusCode)
+            {
+                showAddModal = false;
+                await LoadInitialStatusAsync();
+            }
+            else
+            {
+                var details = await response.Content.ReadAsStringAsync();
+                addServiceError = $"Server returned {response.StatusCode}: {details}";
+            }
+        }
+        catch (Exception ex)
+        {
+            addServiceError = $"Request failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmittingService = false;
+        }
+    }
+
+    private static string GetBannerClass(ServiceStatus status) => status switch
+    {
+        ServiceStatus.Operational => "banner-operational",
+        ServiceStatus.Degraded => "banner-degraded",
+        ServiceStatus.Down => "banner-down",
+        _ => "banner-operational"
+    };
+
+    private static string GetBannerTitle(ServiceStatus status) => status switch
+    {
+        ServiceStatus.Operational => "All Systems Operational",
+        ServiceStatus.Degraded => "System Performance Degraded",
+        ServiceStatus.Down => "Partial System Outage",
+        _ => "Status Unknown"
+    };
+
+    private static string GetBannerDescription(ServiceStatus status) => status switch
+    {
+        ServiceStatus.Operational => "All monitored services and external endpoints are healthy and within nominal thresholds.",
+        ServiceStatus.Degraded => "One or more services are experiencing elevated response times or intermittent failures.",
+        ServiceStatus.Down => "Critical outages detected. Automated alerting and mitigation protocols are active.",
+        _ => "Monitoring in progress."
+    };
+
+    private static string GetLatencyClass(long? latency)
+    {
+        if (!latency.HasValue) return "latency-unknown";
+        if (latency.Value < 300) return "latency-fast";
+        if (latency.Value < 1000) return "latency-moderate";
+        return "latency-slow";
+    }
+
+    private static string FormatLastChecked(DateTime? utcTime)
+    {
+        if (!utcTime.HasValue) return "Never";
+        var diff = DateTime.UtcNow - utcTime.Value;
+        if (diff.TotalSeconds < 10) return "Just now";
+        if (diff.TotalSeconds < 60) return $"{(int)diff.TotalSeconds}s ago";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        return utcTime.Value.ToString("HH:mm:ss 'UTC'");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    private class CreateMonitoredServiceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string TargetUrl { get; set; } = string.Empty;
+        public int IntervalSeconds { get; set; } = 15;
+        public int TimeoutMs { get; set; } = 5000;
+    }
+}
