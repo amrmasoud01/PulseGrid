@@ -9,6 +9,8 @@ using PulseGrid.Application.Services.Commands.ToggleServiceMonitoring;
 using PulseGrid.Application.SystemStatus.Queries.GetSystemStatus;
 using PulseGrid.BackgroundJobs;
 using PulseGrid.Infrastructure;
+using PulseGrid.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,12 +35,18 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    app.MapOpenApi();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
 }
 
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.MapOpenApi();
 app.UseCors();
 
 app.MapHub<StatusHub>("/hubs/status");

@@ -1,0 +1,64 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pulsegrid-sqlserver
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Password123
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password123' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - pulsegrid-net
+
+  pulsegrid-api:
+    build:
+      context: .
+      dockerfile: src/Presentation/PulseGrid.Api/Dockerfile
+    container_name: pulsegrid-api
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=PulseGridDb;User Id=sa;Password=YourStrong@Password123;TrustServerCertificate=True;
+    ports:
+      - "5103:8080"
+    networks:
+      - pulsegrid-net
+
+  pulsegrid-web:
+    build:
+      context: .
+      dockerfile: src/Presentation/PulseGrid.Web/Dockerfile
+    container_name: pulsegrid-web
+    restart: unless-stopped
+    depends_on:
+      - pulsegrid-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ApiBaseUrl=http://pulsegrid-api:8080
+    ports:
+      - "5000:8080"
+    networks:
+      - pulsegrid-net
+
+volumes:
+  sqlserver_data:
+    driver: local
+
+networks:
+  pulsegrid-net:
+    driver: bridge
