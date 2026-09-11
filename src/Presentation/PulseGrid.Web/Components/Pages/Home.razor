@@ -27,6 +27,14 @@
                 <span class="status-indicator"></span>
                 <span>@(isConnected ? "Live Connected" : "Reconnecting...")</span>
             </div>
+            <button type="button" class="btn-about" @onclick="OpenAboutModal" title="About PulseGrid">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                About
+            </button>
             <button class="btn-primary-action" @onclick="OpenAddServiceModal">
                 <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -339,6 +347,84 @@
     </div>
 }
 
+<!-- Modal for About PulseGrid -->
+@if (showAboutModal)
+{
+    <div class="modal-backdrop">
+        <div class="modal-dialog modal-dialog-about" @onclick:stopPropagation="true" @onmousedown:stopPropagation="true">
+            <div class="modal-header">
+                <div class="about-header-title-group">
+                    <div class="about-logo-badge">
+                        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="modal-title">About PulseGrid</h3>
+                        <span class="about-badge-version">v1.0.0</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseAboutModal">&times;</button>
+            </div>
+
+            <div class="modal-body about-modal-body">
+                <div class="about-section">
+                    <div class="about-engine-title">Real-Time Distributed Health & Incident Monitoring Engine</div>
+                    <p class="about-description">
+                        High-throughput telemetry and distributed health surveillance platform designed for enterprise microservices, API gateways, and external third-party integrations with sub-second incident propagation.
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h4 class="about-section-heading">Architecture & Core Stack</h4>
+                    <div class="about-tags-grid">
+                        <span class="about-tag">
+                            <span class="tag-dot net-dot"></span>
+                            .NET 10
+                        </span>
+                        <span class="about-tag">
+                            <span class="tag-dot arch-dot"></span>
+                            Clean Architecture
+                        </span>
+                        <span class="about-tag">
+                            <span class="tag-dot cqrs-dot"></span>
+                            CQRS (MediatR)
+                        </span>
+                        <span class="about-tag">
+                            <span class="tag-dot ef-dot"></span>
+                            EF Core
+                        </span>
+                        <span class="about-tag">
+                            <span class="tag-dot signalr-dot"></span>
+                            SignalR Core
+                        </span>
+                    </div>
+                </div>
+
+                <div class="about-section about-meta-card">
+                    <div class="about-developer-info">
+                        <div class="developer-avatar">AM</div>
+                        <div>
+                            <div class="developer-label">Developer</div>
+                            <div class="developer-name">Amr Masoud</div>
+                        </div>
+                    </div>
+                    <a href="https://github.com/amrmasoud01/PulseGrid" target="_blank" rel="noopener noreferrer" class="btn-github-action">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                        </svg>
+                        <span>GitHub Repository</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" @onclick="CloseAboutModal">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private SystemStatusOverviewDto? overview;
     private HubConnection? hubConnection;
@@ -352,9 +438,14 @@
     private string? addServiceError;
     private CreateMonitoredServiceModel newService = new();
 
+    private bool showAboutModal;
+
     private Guid? serviceIdToDelete;
     private string? serviceNameToDelete;
     private bool isDeletingService;
+
+    private void OpenAboutModal() => showAboutModal = true;
+    private void CloseAboutModal() => showAboutModal = false;
 
     private async Task ToggleServiceMonitoringAsync(ServiceStatusDto service)
     {
