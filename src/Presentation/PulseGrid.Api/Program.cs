@@ -5,6 +5,7 @@ using PulseGrid.Application;
 using PulseGrid.Application.Common.Interfaces;
 using PulseGrid.Application.Services.Commands.CreateMonitoredService;
 using PulseGrid.Application.SystemStatus.Queries.GetSystemStatus;
+using PulseGrid.BackgroundJobs;
 using PulseGrid.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,8 @@ builder.Services.AddSignalR();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<IStatusNotifier, StatusNotifier>();
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<ServiceMonitoringWorker>();
 
 builder.Services.AddCors(options =>
 {

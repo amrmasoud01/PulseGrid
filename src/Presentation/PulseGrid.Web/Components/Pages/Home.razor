@@ -223,47 +223,49 @@
 <!-- Modal to Add Service -->
 @if (showAddModal)
 {
-    <div class="modal-backdrop" @onclick="CloseAddServiceModal">
-        <div class="modal-dialog" @onclick:stopPropagation>
+    <div class="modal-backdrop">
+        <div class="modal-dialog" @onclick:stopPropagation="true" @onmousedown:stopPropagation="true">
             <div class="modal-header">
                 <h3 class="modal-title">Add Monitored Service</h3>
-                <button class="btn-close" @onclick="CloseAddServiceModal">&times;</button>
+                <button type="button" class="btn-close" @onclick="CloseAddServiceModal">&times;</button>
             </div>
 
-            <div class="modal-body">
-                @if (!string.IsNullOrEmpty(addServiceError))
-                {
-                    <div class="form-alert">@addServiceError</div>
-                }
+            <form @onsubmit="SubmitCreateServiceAsync" @onsubmit:preventDefault="true">
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(addServiceError))
+                    {
+                        <div class="form-alert">@addServiceError</div>
+                    }
 
-                <div class="form-group">
-                    <label class="form-label">Service Name</label>
-                    <input class="form-input" @bind="newService.Name" placeholder="e.g. Stripe Payment Gateway" />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Target URL (Absolute)</label>
-                    <input class="form-input" @bind="newService.TargetUrl" placeholder="https://api.stripe.com/healthcheck" />
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Interval (Seconds)</label>
-                        <input type="number" class="form-input" @bind="newService.IntervalSeconds" min="5" max="3600" />
+                        <label class="form-label">Service Name</label>
+                        <input class="form-input" @bind="newService.Name" placeholder="e.g. Stripe Payment Gateway" />
                     </div>
+
                     <div class="form-group">
-                        <label class="form-label">Timeout (Milliseconds)</label>
-                        <input type="number" class="form-input" @bind="newService.TimeoutMs" min="500" max="60000" />
+                        <label class="form-label">Target URL (Absolute)</label>
+                        <input class="form-input" @bind="newService.TargetUrl" placeholder="https://api.stripe.com/healthcheck" />
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Interval (Seconds)</label>
+                            <input type="number" class="form-input" @bind="newService.IntervalSeconds" min="5" max="3600" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Timeout (Milliseconds)</label>
+                            <input type="number" class="form-input" @bind="newService.TimeoutMs" min="500" max="60000" />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="modal-footer">
-                <button class="btn-secondary" @onclick="CloseAddServiceModal" disabled="@isSubmittingService">Cancel</button>
-                <button class="btn-primary-action" @onclick="SubmitCreateServiceAsync" disabled="@isSubmittingService">
-                    @(isSubmittingService ? "Registering..." : "Add Service")
-                </button>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" @onclick="CloseAddServiceModal" disabled="@isSubmittingService">Cancel</button>
+                    <button type="submit" class="btn-primary-action" disabled="@isSubmittingService">
+                        @(isSubmittingService ? "Registering..." : "Add Service")
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 }
@@ -333,6 +335,11 @@
 
                 overview = overview with { Services = updatedServices };
                 lastPingedServiceId = serviceId;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                await LoadInitialStatusAsync();
                 await InvokeAsync(StateHasChanged);
             }
         });

@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Infrastructure\PulseGrid.Infrastructure\PulseGrid.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\PulseGrid.BackgroundJobs\PulseGrid.BackgroundJobs.csproj" />
     <ProjectReference Include="..\..\Core\PulseGrid.Application\PulseGrid.Application.csproj" />
   </ItemGroup>
 

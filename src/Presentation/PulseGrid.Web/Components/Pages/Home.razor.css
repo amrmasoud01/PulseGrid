@@ -563,8 +563,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1050;
+    z-index: 1000;
     padding: 1rem;
+    pointer-events: auto;
 }
 
 .modal-dialog {
@@ -575,6 +576,9 @@
     width: 100%;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     overflow: hidden;
+    position: relative;
+    z-index: 1001;
+    pointer-events: auto;
 }
 
 .modal-header {
