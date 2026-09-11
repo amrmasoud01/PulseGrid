@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/PulseGrid.Application/PulseGrid.Application.csproj" />
+    <Project Path="src/Core/PulseGrid.Domain/PulseGrid.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Infrastructure/">
+    <Project Path="src/Infrastructure/PulseGrid.BackgroundJobs/PulseGrid.BackgroundJobs.csproj" />
+    <Project Path="src/Infrastructure/PulseGrid.Infrastructure/PulseGrid.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Presentation/">
+    <Project Path="src/Presentation/PulseGrid.Api/PulseGrid.Api.csproj" />
+    <Project Path="src/Presentation/PulseGrid.Web/PulseGrid.Web.csproj" />
+  </Folder>
+</Solution>
